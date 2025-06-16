@@ -14,7 +14,11 @@ $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 // Parse JSON body
 $body = json_decode(file_get_contents('php://input'), true);
-if ($body === null && $_SERVER['CONTENT_TYPE'] === 'application/x-www-form-urlencoded') {
+if (
+    $body === null &&
+    isset($_SERVER['CONTENT_TYPE']) &&
+    $_SERVER['CONTENT_TYPE'] === 'application/x-www-form-urlencoded'
+) {
     $body = $_POST;
 }
 
