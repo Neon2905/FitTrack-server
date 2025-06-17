@@ -3,7 +3,14 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../src/Router.php';
 require_once __DIR__ . '/../src/controllers/AuthController.php';
+require_once __DIR__ . '/../src/db/Database.php';
+require_once __DIR__ . '/../src/lib/Dotenv/Dotenv.php';
 
+// TODO:
+// $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+// $dotenv->load();
+
+Database::connect();
 $router = new Router();
 
 $router->add('POST', '/api/register', [AuthController::class, 'register']);

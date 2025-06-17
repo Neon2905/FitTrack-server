@@ -1,11 +1,13 @@
 <?php
 class Database
 {
-    private static $instance = null;
-    private $pdo;
+    private static $pdo = null;
 
-    private function __construct()
+    public static function connect()
     {
+        if (self::$pdo)
+            return;
+
         $host = getenv('DB_HOST') ?: 'localhost';
         $db = getenv('DB_NAME') ?: 'fittrack';
         $user = getenv('DB_USER') ?: 'root';
@@ -18,14 +20,14 @@ class Database
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ];
 
-        $this->pdo = new PDO($dsn, $user, $pass, $options);
+        self::$pdo = new PDO($dsn, $user, $pass, $options);
     }
 
     public static function getInstance()
     {
-        if (self::$instance === null) {
-            self::$instance = new Database();
+        if (self::$pdo === null) {
+            self::connect();
         }
-        return self::$instance->pdo;
+        return self::$pdo;
     }
 }
