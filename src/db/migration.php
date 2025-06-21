@@ -3,7 +3,7 @@ require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/Database.php';
 Database::connect();
 
-function createUsersTable()
+function createUserTable()
 {
     $pdo = Database::getInstance();
     $sql = "
@@ -21,5 +21,5 @@ function createUsersTable()
         )
     ";
     $pdo->exec($sql);
-    echo 'Users table created.' . PHP_EOL;
+    echo 'User table created.' . PHP_EOL;
 }

@@ -13,8 +13,8 @@ require_once __DIR__ . '/../src/lib/Dotenv/Dotenv.php';
 Database::connect();
 $router = new Router();
 
-$router->add('POST', '/api/register', [AuthController::class, 'register']);
-$router->add('POST', '/api/login', [AuthController::class, 'login']);
+$router->add('POST', '/api/auth/register', [AuthController::class, 'register']);
+$router->add('POST', '/api/auth/login', [AuthController::class, 'login']);
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
