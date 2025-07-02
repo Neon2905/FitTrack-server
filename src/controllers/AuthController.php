@@ -28,17 +28,18 @@ class AuthController
     public static function login($body)
     {
         $creds = self::validateCredentials($body);
-        if (!$creds) return;
+        if (!$creds)
+            return;
         list($username, $password) = $creds;
 
         $pdo = Database::getInstance();
 
-        $stmt = $pdo->prepare('SELECT id, password_hash FROM user WHERE username = ?');
+        $stmt = $pdo->prepare('SELECT * FROM user WHERE username = ?');
         $stmt->execute([$username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
-            self::respond(['success' => false, 'message' => 'Invalid credentials'], 401);
+            self::respond(['message' => 'Invalid credentials'], 401);
             return;
         }
 
@@ -46,22 +47,23 @@ class AuthController
             'sub' => $user['id'],
             'username' => $username,
             'iat' => time(),
-            'exp' => time() + 3600 * 24 * 7 // 7 day expiration
+            'exp' => time() + 3600 * 24 * 30 // 30 day expiration
         ];
 
         $token = createJWT($payload);
 
         self::respond([
-            'success' => true,
-            'user_id' => $user['id'],
-            'token' => $token
+            'username' => $user['username'],
+            'email' => $user['email'] ?? null, // Optional email field
+            'token' => $token,
         ]);
     }
 
     public static function register($body)
     {
         $creds = self::validateCredentials($body);
-        if (!$creds) return;
+        if (!$creds)
+            return;
         list($username, $password) = $creds;
 
         $pdo = Database::getInstance();
@@ -107,7 +109,6 @@ class AuthController
         }
     }
 
-    // New: Change password
     public static function changePassword($body)
     {
         $userId = $body['user_id'] ?? null;
