@@ -1,20 +1,9 @@
 <?php
-// Define project root if not already defined
-if (!defined('__ROOT__')) {
-    define('__ROOT__', dirname(__DIR__, 2));
-}
+require_once __DIR__ . '/../../vendor/autoload.php';
 
-// Dotenv manual autoload (order matters!)
-require_once __ROOT__ . '/src/lib/Dotenv/Repository/Adapter/AdapterInterface.php';
-require_once __ROOT__ . '/src/lib/Dotenv/Repository/Adapter/PutenvAdapter.php';
-require_once __ROOT__ . '/src/lib/Dotenv/Repository/RepositoryBuilder.php';
-require_once __ROOT__ . '/src/lib/Dotenv/Store/StoreBuilder.php';
-require_once __ROOT__ . '/src/lib/Dotenv/Parser/Parser.php';
-require_once __ROOT__ . '/src/lib/Dotenv/Loader/Loader.php';
-require_once __ROOT__ . '/src/lib/Dotenv/Dotenv.php';
+use Dotenv\Dotenv;
 
-// Load .env variables
-$dotenv = Dotenv\Dotenv::createImmutable(__ROOT__);
+$dotenv = Dotenv::createImmutable(__DIR__."/../../");
 $dotenv->load();
 
 class Database
@@ -26,22 +15,33 @@ class Database
         if (self::$pdo)
             return;
 
-        $host = getenv('DB_HOST') ?: 'localhost';
-        $db = getenv('DB_NAME') ?: 'fittrack';
-        $user = getenv('DB_USER') ?: 'root';
-        $pass = getenv('DB_PASS') ?: '';
-        $charset = 'utf8mb4';
-        $db_uri = getenv('DB_URI') ?: "mysql:host={$host};dbname={$db};charset={$charset}";
+        $db_uri = $_ENV['DB_URI'] ?? null;
 
-        // Debug: show the DSN being used
-        // echo "DB_URI:". $db_uri . PHP_EOL;
+        if ($db_uri && str_starts_with($db_uri, 'mysql://')) {
+            $parts = parse_url($db_uri);
+            $host = $parts['host'] ?? 'localhost';
+            $db = ltrim($parts['path'], '/');
+            $user = $parts['user'] ?? 'root';
+            $pass = $parts['pass'] ?? '';
+            $port = $parts['port'] ?? 3306;
+            $charset = 'utf8mb4';
+            $dsn = "mysql:host={$host};port={$port};dbname={$db};charset={$charset}";
+        } else {
+            $host = $_ENV['DB_HOST'] ?? 'localhost';
+            $db = $_ENV['DB_NAME'] ?? 'fittrack';
+            $user = $_ENV['DB_USER'] ?? 'root';
+            $pass = $_ENV['DB_PASS'] ?? '';
+            $charset = 'utf8mb4';
+            $dsn = "mysql:host={$host};dbname={$db};charset={$charset}";
+        }
 
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ];
 
-        self::$pdo = new PDO($db_uri, $user, $pass, $options);
+        echo "Connecting to database: $dsn\n";
+        self::$pdo = new PDO($dsn, $user, $pass, $options);
     }
 
     public static function getInstance()

@@ -30,7 +30,7 @@ class AuthController
         $creds = self::validateCredentials($body);
         if (!$creds)
             return;
-        list($username, $password) = $creds;
+        [$username, $password] = $creds;
 
         $pdo = Database::getInstance();
 
@@ -79,9 +79,9 @@ class AuthController
         // Hash the password
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
 
-        // Insert new user
-        $stmt = $pdo->prepare('INSERT INTO user (username, password_hash) VALUES (?, ?)');
-        if ($stmt->execute([$username, $passwordHash])) {
+        // Insert new user (add 'name' field, set to username or empty string)
+        $stmt = $pdo->prepare('INSERT INTO user (username, password_hash, name) VALUES (?, ?, ?)');
+        if ($stmt->execute([$username, $passwordHash, $username])) {
             self::respond(['success' => true, 'message' => 'User registered successfully']);
         } else {
             self::respond(['success' => false, 'message' => 'Registration failed'], 500);
@@ -133,9 +133,9 @@ class AuthController
         $newHash = password_hash($newPassword, PASSWORD_BCRYPT);
         $stmt = $pdo->prepare('UPDATE user SET password_hash = ? WHERE id = ?');
         if ($stmt->execute([$newHash, $userId])) {
-            self::respond(['success' => true, 'message' => 'Password changed']);
+            self::respond(['success' => true, 'message' => 'Password changed successfully']);
         } else {
-            self::respond(['success' => false, 'message' => 'Failed to change password'], 500);
+            self::respond(['success' => false, 'message' => 'Password change failed'], 500);
         }
     }
 }
