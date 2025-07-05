@@ -1,25 +1,17 @@
 <?php
 
-require_once __DIR__ . '/../lib/jwt.php';
 require_once __DIR__ . '/../db/Database.php';
+require_once __DIR__ . '/../utils/httpHelper.php';
 
 class AuthController
 {
-    // Helper: Send JSON response with status code
-    private static function respond($data, $status = 200)
-    {
-        http_response_code($status);
-        header('Content-Type: application/json');
-        echo json_encode($data);
-    }
-
     // Helper: Validate username and password
     private static function validateCredentials($body)
     {
         $username = trim($body['username'] ?? '');
         $password = trim($body['password'] ?? '');
         if (!$username || !$password) {
-            self::respond(['success' => false, 'message' => 'Username and password required'], 400);
+            respond(['success' => false, 'message' => 'Username and password required'], 400);
             return false;
         }
         return [$username, $password];
@@ -30,7 +22,7 @@ class AuthController
         $creds = self::validateCredentials($body);
         if (!$creds)
             return;
-        [$username, $password] = $creds;
+        list($username, $password) = $creds;
 
         $pdo = Database::getInstance();
 
@@ -39,23 +31,15 @@ class AuthController
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
-            self::respond(['message' => 'Invalid credentials'], 401);
+            respond(['message' => 'Invalid credentials'], 401);
             return;
         }
 
-        $payload = [
-            'sub' => $user['id'],
-            'username' => $username,
-            'iat' => time(),
-            'exp' => time() + 3600 * 24 * 30 // 30 day expiration
-        ];
+        generateTokenAndSetCookie($user["id"], $user["username"]);
 
-        $token = createJWT($payload);
-
-        self::respond([
+        respond([
             'username' => $user['username'],
             'email' => $user['email'] ?? null, // Optional email field
-            'token' => $token,
         ]);
     }
 
@@ -72,19 +56,19 @@ class AuthController
         $stmt = $pdo->prepare('SELECT id FROM user WHERE username = ?');
         $stmt->execute([$username]);
         if ($stmt->fetch()) {
-            self::respond(['success' => false, 'message' => 'Username already exists'], 400);
+            respond(['success' => false, 'message' => 'Username already exists'], 400);
             return;
         }
 
         // Hash the password
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
 
-        // Insert new user (add 'name' field, set to username or empty string)
-        $stmt = $pdo->prepare('INSERT INTO user (username, password_hash, name) VALUES (?, ?, ?)');
-        if ($stmt->execute([$username, $passwordHash, $username])) {
-            self::respond(['success' => true, 'message' => 'User registered successfully']);
+        // Insert new user
+        $stmt = $pdo->prepare('INSERT INTO user (username, password_hash) VALUES (?, ?)');
+        if ($stmt->execute([$username, $passwordHash])) {
+            respond(['success' => true, 'message' => 'User registered successfully']);
         } else {
-            self::respond(['success' => false, 'message' => 'Registration failed'], 500);
+            respond(['success' => false, 'message' => 'Registration failed'], 500);
         }
     }
 
@@ -93,7 +77,7 @@ class AuthController
     {
         $userId = $body['user_id'] ?? null;
         if (!$userId) {
-            self::respond(['success' => false, 'message' => 'User ID required'], 400);
+            respond(['success' => false, 'message' => 'User ID required'], 400);
             return;
         }
 
@@ -103,9 +87,9 @@ class AuthController
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user) {
-            self::respond(['success' => true, 'user' => $user]);
+            respond(['success' => true, 'user' => $user]);
         } else {
-            self::respond(['success' => false, 'message' => 'User not found'], 404);
+            respond(['success' => false, 'message' => 'User not found'], 404);
         }
     }
 
@@ -116,7 +100,7 @@ class AuthController
         $newPassword = $body['new_password'] ?? '';
 
         if (!$userId || !$oldPassword || !$newPassword) {
-            self::respond(['success' => false, 'message' => 'All fields required'], 400);
+            respond(['success' => false, 'message' => 'All fields required'], 400);
             return;
         }
 
@@ -126,16 +110,16 @@ class AuthController
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user || !password_verify($oldPassword, $user['password_hash'])) {
-            self::respond(['success' => false, 'message' => 'Invalid credentials'], 401);
+            respond(['success' => false, 'message' => 'Invalid credentials'], 401);
             return;
         }
 
         $newHash = password_hash($newPassword, PASSWORD_BCRYPT);
         $stmt = $pdo->prepare('UPDATE user SET password_hash = ? WHERE id = ?');
         if ($stmt->execute([$newHash, $userId])) {
-            self::respond(['success' => true, 'message' => 'Password changed successfully']);
+            respond(['success' => true, 'message' => 'Password changed']);
         } else {
-            self::respond(['success' => false, 'message' => 'Password change failed'], 500);
+            respond(['success' => false, 'message' => 'Failed to change password'], 500);
         }
     }
 }

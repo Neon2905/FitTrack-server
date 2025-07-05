@@ -1,25 +1,58 @@
 <?php
-class Router {
+class Router
+{
     private $routes = [];
+    private $currentGroupPrefix = '';
+    private $currentMiddlewares = [];
 
-    public function add($method, $path, $handler) {
-        $this->routes[] = compact('method', 'path', 'handler');
+    public function group($prefix, $callback, $middlewares = [])
+    {
+        $previousPrefix = $this->currentGroupPrefix;
+        $previousMiddlewares = $this->currentMiddlewares;
+
+        $this->currentGroupPrefix .= $prefix;
+        $this->currentMiddlewares = array_merge($this->currentMiddlewares, $middlewares);
+
+        $callback($this);
+
+        $this->currentGroupPrefix = $previousPrefix;
+        $this->currentMiddlewares = $previousMiddlewares;
     }
 
-    public function dispatch($method, $uri, $body = null) {
+    public function add($method, $path, $handler, $middlewares = [])
+    {
+        $fullPath = $this->currentGroupPrefix . $path;
+        $allMiddlewares = array_merge($this->currentMiddlewares, $middlewares);
+
+        $this->routes[] = [
+            'method' => strtoupper($method),
+            'path' => $fullPath,
+            'handler' => $handler,
+            'middlewares' => $allMiddlewares,
+        ];
+    }
+
+    public function dispatch($method, $uri, $body)
+    {
         foreach ($this->routes as $route) {
-            if ($method === $route['method'] && preg_match($this->convertToRegex($route['path']), $uri, $params)) {
-                array_shift($params); // Remove full match
-                // Pass $body as the first argument to the handler
-                array_unshift($params, $body);
-                return call_user_func_array($route['handler'], $params);
+            if (
+                $route['method'] === $method &&
+                $route['path'] === $uri
+            ) {
+                // Run middlewares
+                foreach ($route['middlewares'] as $middleware) {
+                    $result = $middleware($method, $uri, $body);
+                    if ($result === false) {
+                        // Middleware can stop execution
+                        return;
+                    }
+                }
+                // Call handler
+                call_user_func($route['handler'], $body);
+                return;
             }
         }
         http_response_code(404);
         echo json_encode(['error' => 'Not found']);
-    }
-
-    private function convertToRegex($path) {
-        return '#^' . preg_replace('#\{[\w]+\}#', '([\w-]+)', $path) . '$#';
     }
 }

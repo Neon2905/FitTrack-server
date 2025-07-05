@@ -1,22 +1,37 @@
 <?php
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Dotenv\Dotenv;
-
-$dotenv = Dotenv::createImmutable(__DIR__."/../");
-$dotenv->load();
-
-header('Content-Type: application/json');
-
 require_once __DIR__ . '/../src/Router.php';
 require_once __DIR__ . '/../src/controllers/AuthController.php';
+require_once __DIR__ . '/../src/controllers/ActivityController.php';
 require_once __DIR__ . '/../src/db/Database.php';
+
+use Dotenv\Dotenv;
+
+$dotenv = Dotenv::createImmutable(__DIR__ . "/../");
+$dotenv->load();
+
+// Prevent logging errors on client console
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', '/path/to/php-error.log');
+
+
+header('Content-Type: application/json');
 
 Database::connect();
 $router = new Router();
 
-$router->add('POST', '/api/auth/register', [AuthController::class, 'register']);
-$router->add('POST', '/api/auth/login', [AuthController::class, 'login']);
+// Route registration
+$router->group('/api/auth', function ($router) {
+    $router->add('POST', '/register', [AuthController::class, 'register']);
+    $router->add('POST', '/login', [AuthController::class, 'login']);
+});
+
+$router->group('/api/activity', function ($router) {
+    $router->add('GET', '/get/all', [ActivityController::class, 'getActivities']);
+    // TODO: Add more activity routes here
+});
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -31,4 +46,9 @@ if (
     $body = $_POST;
 }
 
-$router->dispatch($method, $uri, $body);
+// Centralized error handling
+try {
+    $router->dispatch($method, $uri, $body);
+} catch (Throwable $e) {
+    respond(['message'=> 'Internal Server Error'], 501); // TODO: not sure if code 501 is correct
+}
