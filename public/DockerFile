@@ -1,0 +1,25 @@
+# Use official PHP image with Apache
+FROM php:8.2-apache
+
+# Enable Apache rewrite module (if you need it)
+RUN a2enmod rewrite
+
+# Copy your app code into the container
+COPY . /var/www/html/
+
+# Set working directory to /var/www/html/public (your document root)
+WORKDIR /var/www/html/public
+
+# Install Composer dependencies
+COPY composer.json composer.lock /var/www/html/
+RUN apt-get update && apt-get install -y unzip git && \
+    php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && \
+    php composer-setup.php --install-dir=/usr/local/bin --filename=composer && \
+    composer install --no-dev --optimize-autoloader && \
+    rm composer-setup.php && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Expose port 80 (Apache)
+EXPOSE 80
+
+# Start Apache in the foreground (Render expects this)
+CMD ["apache2-foreground"]
