@@ -13,7 +13,7 @@ ini_set('error_log', '/../error.log');
 
 use Dotenv\Dotenv;
 
-$dotenvPath = __DIR__ . "/../";
+$dotenvPath = __DIR__ . "/../.env";
 if (file_exists($dotenvPath)) {
     $dotenv = Dotenv::createImmutable($dotenvPath);
     $dotenv->load();

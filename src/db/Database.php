@@ -5,7 +5,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 // Normally, it's set in the index.php. Only needed if in case there's manual migration, etc.
 use Dotenv\Dotenv;
 
-$dotenvPath = __DIR__ . "/../";
+$dotenvPath = __DIR__ . "/../../.env";
 if (file_exists($dotenvPath)) {
     $dotenv = Dotenv::createImmutable($dotenvPath);
     $dotenv->load();
