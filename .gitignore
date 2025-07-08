@@ -18,3 +18,4 @@ storage/framework/cache/data
 /storage/app/public
 .phpunit.result.cache
 /.vscode/
+error.log

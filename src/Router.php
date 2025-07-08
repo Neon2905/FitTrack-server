@@ -1,4 +1,7 @@
 <?php
+
+require_once __DIR__ . "/utils/httpHelper.php";
+
 class Router
 {
     private $routes = [];
@@ -49,10 +52,11 @@ class Router
                 }
                 // Call handler
                 call_user_func($route['handler'], $body);
+
+                // Exists
                 return;
             }
         }
-        http_response_code(404);
-        echo json_encode(['error' => 'Not found']);
+        respond(["error" => "Not found"], 404);
     }
 }

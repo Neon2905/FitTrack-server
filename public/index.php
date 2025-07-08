@@ -4,26 +4,31 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Router.php';
 require_once __DIR__ . '/../src/controllers/AuthController.php';
 require_once __DIR__ . '/../src/controllers/ActivityController.php';
+require_once __DIR__ . '/../src/controllers/ServerController.php';
 require_once __DIR__ . '/../src/db/Database.php';
 
 // Prevent logging errors on client console
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
-ini_set('error_log', '/../error.log');
+ini_set('error_log', __DIR__ . '/../error.log');
+
+header('Content-Type: application/json');
 
 use Dotenv\Dotenv;
 
-$dotenvPath = __DIR__ . "/../.env";
-if (file_exists($dotenvPath)) {
+$dotenvPath = __DIR__ . "/../";
+if (file_exists($dotenvPath . ".env")) {
     $dotenv = Dotenv::createImmutable($dotenvPath);
     $dotenv->load();
 }
 
-
-header('Content-Type: application/json');
-
 Database::connect();
 $router = new Router();
+
+$router->group('/api/test', function ($router) {
+    $router->add('GET', '/check', [ServerController::class, 'check']);
+    $router->add('GET', '/cookie', [ServerController::class, 'testCookie']);
+});
 
 // Route registration
 $router->group('/api/auth', function ($router) {
@@ -53,5 +58,20 @@ if (
 try {
     $router->dispatch($method, $uri, $body);
 } catch (Throwable $e) {
-    respond(['message' => 'Internal Server Error'], 500); // TODO: not sure if code 501 is correct
+    $trace = $e->getTrace();
+    $caller = $trace[0]['class'] ?? '';
+    if ($caller !== '') {
+        $caller .= '::' . ($trace[0]['function'] ?? 'unknown');
+    } else {
+        $caller = $trace[0]['function'] ?? 'unknown';
+    }
+
+    respond(
+        [
+            "error" => "Internal server error"
+        ],
+        500
+    );
+
+    error_log("Error in " . $caller . ": " . $e->getMessage());
 }
