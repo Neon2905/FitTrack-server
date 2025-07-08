@@ -1,10 +1,15 @@
 <?php
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+
+// Normally, it's set in the index.php. Only needed if in case there's manual migration, etc.
 use Dotenv\Dotenv;
 
-$dotenv = Dotenv::createImmutable(__DIR__."/../../");
-$dotenv->load();
+$dotenvPath = __DIR__ . "/../";
+if (file_exists($dotenvPath)) {
+    $dotenv = Dotenv::createImmutable($dotenvPath);
+    $dotenv->load();
+}
 
 class Database
 {
@@ -39,7 +44,7 @@ class Database
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ];
-        
+
         self::$pdo = new PDO($dsn, $user, $pass, $options);
     }
 

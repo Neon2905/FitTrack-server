@@ -6,15 +6,18 @@ require_once __DIR__ . '/../src/controllers/AuthController.php';
 require_once __DIR__ . '/../src/controllers/ActivityController.php';
 require_once __DIR__ . '/../src/db/Database.php';
 
-use Dotenv\Dotenv;
-
-$dotenv = Dotenv::createImmutable(__DIR__ . "/../");
-$dotenv->load();
-
 // Prevent logging errors on client console
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
-ini_set('error_log', '/path/to/php-error.log');
+ini_set('error_log', '/../error.log');
+
+use Dotenv\Dotenv;
+
+$dotenvPath = __DIR__ . "/../";
+if (file_exists($dotenvPath)) {
+    $dotenv = Dotenv::createImmutable($dotenvPath);
+    $dotenv->load();
+}
 
 
 header('Content-Type: application/json');
@@ -50,5 +53,5 @@ if (
 try {
     $router->dispatch($method, $uri, $body);
 } catch (Throwable $e) {
-    respond(['message'=> 'Internal Server Error'], 501); // TODO: not sure if code 501 is correct
+    respond(['message' => 'Internal Server Error'], 500); // TODO: not sure if code 501 is correct
 }
