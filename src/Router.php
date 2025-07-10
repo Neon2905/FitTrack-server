@@ -14,7 +14,10 @@ class Router
         $previousMiddlewares = $this->currentMiddlewares;
 
         $this->currentGroupPrefix .= $prefix;
-        $this->currentMiddlewares = array_merge($this->currentMiddlewares, $middlewares);
+        $this->currentMiddlewares = array_merge(
+            $this->currentMiddlewares,
+            is_array($middlewares) ? $middlewares : [$middlewares]
+        );
 
         $callback($this);
 
@@ -44,7 +47,7 @@ class Router
             ) {
                 // Run middlewares
                 foreach ($route['middlewares'] as $middleware) {
-                    $result = $middleware($method, $uri, $body);
+                    $result = $middleware($body);
                     if ($result === false) {
                         // Middleware can stop execution
                         return;

@@ -6,6 +6,9 @@ require_once __DIR__ . '/../src/controllers/AuthController.php';
 require_once __DIR__ . '/../src/controllers/ActivityController.php';
 require_once __DIR__ . '/../src/controllers/ServerController.php';
 require_once __DIR__ . '/../src/db/Database.php';
+require_once __DIR__ . '/../src/middlewares/auth.middleware.php';
+
+use Dotenv\Dotenv;
 
 // Prevent logging errors on client console
 ini_set('display_errors', 0);
@@ -13,8 +16,6 @@ ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../error.log');
 
 header('Content-Type: application/json');
-
-use Dotenv\Dotenv;
 
 $dotenvPath = __DIR__ . "/../";
 if (file_exists($dotenvPath . ".env")) {
@@ -25,21 +26,26 @@ if (file_exists($dotenvPath . ".env")) {
 Database::connect();
 $router = new Router();
 
-$router->group('/api/test', function ($router) {
-    $router->add('GET', '/check', [ServerController::class, 'check']);
-    $router->add('GET', '/cookie', [ServerController::class, 'testCookie']);
-});
 
 // Route registration
 $router->group('/api/auth', function ($router) {
     $router->add('POST', '/register', [AuthController::class, 'register']);
     $router->add('POST', '/login', [AuthController::class, 'login']);
-});
+    $router->add('POST', '/logout', [AuthController::class, 'logout']);
+}, $authMiddleware);
+
+
+$router->group('/api/test', function ($router) {
+    $router->add('GET', '/check', [ServerController::class, 'check']);
+    $router->add('GET', '/cookie', [ServerController::class, 'testCookie']);
+},$authMiddleware);
+
 
 $router->group('/api/activity', function ($router) {
     $router->add('GET', '/get/all', [ActivityController::class, 'getActivities']);
     // TODO: Add more activity routes here
 });
+
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -56,6 +62,7 @@ if (
 
 // Centralized error handling
 try {
+    // Execute
     $router->dispatch($method, $uri, $body);
 } catch (Throwable $e) {
     $trace = $e->getTrace();

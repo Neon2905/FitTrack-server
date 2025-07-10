@@ -8,6 +8,33 @@ function respond($data, $status = 200)
     echo json_encode($data);
 }
 
+function verifyToken($token)
+{
+    if (!$token) {
+        return null;
+    }
+
+    try {
+        $decoded = decodeJWT($token);
+        return $decoded['user_id'] ?? null;
+    } catch (Exception $e) {
+        revokeToken();
+        return null; // Invalid token
+    }
+}
+
+function revokeToken()
+{
+    setcookie('jwt', '', [
+        'expires' => time() - 3600,
+        'path' => '/',
+        'httponly' => true,
+        'samesite' => 'Lax',
+        'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on'
+    ]);
+}
+;
+
 function generateTokenAndSetCookie($userId, $username)
 {
     if ($userId == null)
@@ -24,9 +51,10 @@ function generateTokenAndSetCookie($userId, $username)
     );
 
     $expiration = $_ENV["JWT_EXPIRATION"] ?: 3600 * 24 * 30; //default 30 days
+    $expireTimestamp = time() + (int) $expiration;
 
     setcookie('jwt', $token, [
-        'expires' => $expiration,
+        'expires' => $expireTimestamp,
         'path' => '/',
         'httponly' => true,
         'samesite' => 'Lax',
