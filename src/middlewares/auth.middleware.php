@@ -22,14 +22,14 @@ $authMiddleware = function ($body) {
     $token = $_COOKIE['jwt'] ?? '';
     if (!$token) {
         respond(['message' => 'Unauthorized'], 401);
-        return;
+        exit;
     }
 
     // Verify token
     $userId = verifyToken($token);
     if (!$userId) {
         respond(['message' => 'Invalid token'], 401);
-        return;
+        exit;
     }
 
     // Check if user_id exists in the database
@@ -42,10 +42,10 @@ $authMiddleware = function ($body) {
 
     if (!$user) {
         respond(['message' => 'Invalid token'], 401);
-        return;
+        exit;
     }
 
-    // Attach user ID to request
+    // Attach user ID to main request body
     $body['user_id'] = $userId;
     return $body;
 };

@@ -47,11 +47,7 @@ class Router
             ) {
                 // Run middlewares
                 foreach ($route['middlewares'] as $middleware) {
-                    $result = $middleware($body);
-                    if ($result === false) {
-                        // Middleware can stop execution
-                        return;
-                    }
+                    $body = $middleware($body);
                 }
                 // Call handler
                 call_user_func($route['handler'], $body);
