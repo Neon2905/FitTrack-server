@@ -1,49 +1,25 @@
 -- USERS TABLE
 CREATE TABLE
     IF NOT EXISTS user (
-        user_id INT AUTO_INCREMENT PRIMARY KEY,
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255),
         email VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
-        is_verified BOOLEAN DEFAULT FALSE,
-        two_fa_enabled BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
--- ACTIVITY LOGS
-CREATE TABLE
-    IF NOT EXISTS activity (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT,
-        type ENUM ('walking', 'running', 'cycling', 'weightlifting'),
-        start_time DATETIME,
-        end_time DATETIME,
-        duration DECIMAL(5, 2),
-        distance DECIMAL(6, 2),
-        calories_burned DECIMAL(6, 2),
-        steps INT DEFAULT 0,
-        reps INT DEFAULT 0,
-        challenge_id INT,
-        FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE,
-        FOREIGN KEY (challenge_id) REFERENCES challenge (id) ON DELETE SET NULL
-    );
-
--- SLEEP SESSIONS
-CREATE TABLE
-    IF NOT EXISTS sleep_sessions (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        user_id INT,
-        start_time DATETIME,
-        end_time DATETIME,
-        quality VARCHAR(100),
-        synced_with_google_fit BOOLEAN DEFAULT FALSE,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        date_of_birth DATE,
+        gender ENUM ('male', 'female', 'other'),
+        weight FLOAT,
+        profile_picture_url VARCHAR(255),
+        is_verified BOOLEAN DEFAULT TRUE,
+        two_fa_enabled BOOLEAN DEFAULT TRUE
     );
 
 -- CHALLENGES
 CREATE TABLE
     IF NOT EXISTS challenge (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        uuid INT,
         user_id INT,
+        PRIMARY KEY (uuid, user_id),
         title VARCHAR(255) NOT NULL,
         goal_type ENUM ('steps', 'distance', 'calories', 'duration') NOT NULL,
         target_value DECIMAL(10, 2) NOT NULL,
@@ -55,6 +31,37 @@ CREATE TABLE
         FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE
     );
 
+-- ACTIVITY LOGS
+CREATE TABLE
+    IF NOT EXISTS activity (
+        uuid INT,
+        user_id INT,
+        PRIMARY KEY (uuid, user_id),
+        type ENUM ('walking', 'running', 'cycling', 'weightlifting') NOT NULL,
+        start_time DATETIME NOT NULL,
+        end_time DATETIME DEFAULT NULL,
+        duration BIGINT NOT NULL,
+        distance DOUBLE DEFAULT 0.0,
+        calories DOUBLE NOT NULL,
+        steps INT DEFAULT 0,
+        reps INT DEFAULT 0,
+        challenge_id INT NULL,
+        tracks JSON DEFAULT NULL,
+        FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE
+    );
+
+-- SLEEP SESSIONS
+CREATE TABLE
+    IF NOT EXISTS sleep_sessions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        start_time DATETIME,
+        end_time DATETIME,
+        quality VARCHAR(100),
+        synced_with_google_fit BOOLEAN DEFAULT FALSE,
+        FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE
+    );
+
 -- DEVICE SYNC SETTINGS
 CREATE TABLE
     IF NOT EXISTS sync_settings (
@@ -62,7 +69,7 @@ CREATE TABLE
         user_id INT,
         wearable_sync_enabled BOOLEAN DEFAULT FALSE,
         google_fit_connected BOOLEAN DEFAULT FALSE,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE
     );
 
 -- DAILY SUMMARY
@@ -75,7 +82,7 @@ CREATE TABLE
         total_distance DECIMAL(6, 2) DEFAULT 0.00,
         total_calories_burned DECIMAL(6, 2) DEFAULT 0.00,
         total_duration DECIMAL(5, 2) DEFAULT 0.00,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE
     );
 
 -- ANALYTICS CACHE (optional local/server store)
@@ -86,5 +93,5 @@ CREATE TABLE
         report_type ENUM ('daily', 'weekly', 'monthly'),
         generated_on DATE,
         data TEXT,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES user (id) ON DELETE CASCADE
     );
