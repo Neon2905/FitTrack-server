@@ -29,7 +29,7 @@ $tables = [
     'sleep_sessions',
     'activity',
     'challenge',
-    'user'
+    // 'user'
 ];
 
 foreach ($tables as $table) {

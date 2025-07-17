@@ -33,6 +33,7 @@ $router = new Router();
 
 // Auth route
 $router->group('/api/auth', function ($router) {
+    $router->add('POST','/check', [AuthController::class, 'checkAuth']);
     $router->add('POST', '/register', [AuthController::class, 'register']);
     $router->add('POST', '/login', [AuthController::class, 'login']);
     $router->add('POST', '/logout', [AuthController::class, 'logout']);
@@ -49,8 +50,9 @@ $router->group('/api/user', function ($router) {
 }, $authMiddleware);
 
 $router->group('/api/activity', function ($router) {
-    $router->add('POST', '/log', [ActivityController::class, 'addActivity']); // Create a new activity log
-    $router->add('POST', '/batch-log', [ActivityController::class, 'batchSync']); // Bulk upload offline logs
+    $router->add('POST', '/log', [ActivityController::class, 'add']); // Create a new activity log
+    $router->add('POST', '/batch-log', [ActivityController::class, 'batchAdd']); // Bulk upload offline logs
+    $router->add('POST', '/sync',[ActivityController::class, 'batchSync']);
     $router->add('GET', '/list', [ActivityController::class, 'getActivities']); // Get all user activities
     $router->add('GET', '/daily-summary', [ActivityController::class, 'dailySummary']); // Daily stats summary
 

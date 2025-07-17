@@ -29,6 +29,29 @@ class AuthController
         return [$username, $password, $email];
     }
 
+    public static function checkAuth($body)
+    {
+        $userId = $body['user_id'];
+        $pdo = Database::getInstance();
+        $stmt = $pdo->prepare('SELECT username, email FROM user WHERE id = ?');
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user) {
+            generateTokenAndSetCookie($userId, $user["username"]);
+            respond(
+                [
+                    'username' => $user['username'],
+                    'email' => $user['email'] ?? null, // Optional email field
+                ],
+                200
+            );
+        } else {
+            setcookie('jwt', '', time() - 3600, '/'); // Revoke cookie
+            respond(['message' => 'User not found'], 404);
+        }
+    }
+
     public static function login($body)
     {
         $creds = self::validateLoginCredentials($body);
@@ -88,7 +111,11 @@ class AuthController
 
         // Insert new user
         $stmt = $pdo->prepare('INSERT INTO user (username, email, password_hash) VALUES (?, ?, ?)');
-        if ($stmt->execute([$username, $email, $passwordHash])) {
+        $success = $stmt->execute([$username, $email, $passwordHash]);
+
+        if ($success) {
+            $userId = $pdo->lastInsertId();
+            generateTokenAndSetCookie($userId, $username);
             respond(
                 [
                     'username' => $username,

@@ -37,7 +37,7 @@ CREATE TABLE
         uuid INT,
         user_id INT,
         PRIMARY KEY (uuid, user_id),
-        type ENUM ('walking', 'running', 'cycling', 'weightlifting') NOT NULL,
+        type ENUM ('walking', 'running', 'cycling', 'weightlifting', 'unknown') NOT NULL,
         start_time DATETIME NOT NULL,
         end_time DATETIME DEFAULT NULL,
         duration BIGINT NOT NULL,

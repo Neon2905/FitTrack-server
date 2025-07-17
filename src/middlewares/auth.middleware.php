@@ -21,6 +21,7 @@ $authMiddleware = function ($body) {
 
     $token = $_COOKIE['jwt'] ?? '';
     if (!$token) {
+        setcookie('jwt', '', time() - 3600, '/'); // Revoke cookie
         respond(['message' => 'Unauthorized'], 401);
         exit;
     }
@@ -28,6 +29,7 @@ $authMiddleware = function ($body) {
     // Verify token
     $userId = verifyToken($token);
     if (!$userId) {
+        setcookie('jwt', '', time() - 3600, '/'); // Revoke cookie
         respond(['message' => 'Invalid token'], 401);
         exit;
     }
@@ -41,6 +43,7 @@ $authMiddleware = function ($body) {
     $user = $stmt->fetch(mode: PDO::FETCH_ASSOC);
 
     if (!$user) {
+        setcookie('jwt', '', time() - 3600, '/'); // Revoke cookie
         respond(['message' => 'Invalid token'], 401);
         exit;
     }

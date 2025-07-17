@@ -7,17 +7,24 @@ class ActivityController
     public static function getActivities($body)
     {
         $userId = $body['user_id'];
-        $exclude = isset($body['exclude']) && is_array($body['exclude']) ? $body['exclude'] : [];
+        $exceptions = [];
+
+        if (isset($_GET['exceptions']) && $_GET['exceptions'] != "") {
+            isset($_GET['exceptions']) ? (array) $_GET['exceptions'] : [];
+        }
+
+        // Cast exceptions to strings to match uuid column type
+        $exceptions = array_map('strval', $exceptions);
 
         $pdo = Database::getInstance();
-        // Build query to exclude activities with UUIDs in $excepts
+
         $query = 'SELECT * FROM activity WHERE user_id = ?';
         $params = [$userId];
 
-        if (!empty($exclude)) {
-            $placeholders = implode(',', array_fill(0, count($exclude), '?'));
+        if (!empty($exceptions)) {
+            $placeholders = implode(',', $exceptions);
             $query .= " AND uuid NOT IN ($placeholders)";
-            $params = array_merge($params, $exclude);
+            $params = array_merge($params);
         }
 
         $query .= ' ORDER BY start_time DESC';
@@ -26,31 +33,37 @@ class ActivityController
         $stmt->execute($params);
         $activities = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Decode tracks JSON for each activity
+        // Parse to client known body
         foreach ($activities as &$activity) {
             if (isset($activity['tracks'])) {
                 $decodedTracks = json_decode($activity['tracks'], true);
                 $activity['tracks'] = is_array($decodedTracks) ? $decodedTracks : [];
             }
+            $activity = (array)Activity::parse($activity);
         }
-        unset($activity); // break reference
 
-        respond([
-            'activities' => $activities
-        ], 200);
+        if (empty($activities)) {
+            respond([
+                'success' => false,
+                'message' => 'No activities found'
+            ], 404);
+            return;
+        }
+
+        respond(
+            $activities,
+            200
+        );
     }
 
-    public static function addActivity($body)
+    public static function add($body)
     {
         $userId = $body['user_id'];
-        $activity = $body['activity'];
 
         $pdo = Database::getInstance();
 
-        error_log("Body: " . print_r($body, true));
-
         // Extract fields from $activityData with defaults
-        $uuid = $activity['id'];
+        $uuid = $body['id'];
 
         // Check if already exists
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM activity WHERE uuid = ?');
@@ -63,19 +76,19 @@ class ActivityController
             ], 409);
         }
 
-        $type = $activity['type'] ?: '';
-        // Convert ISO 8601 to MySQL datetime format if necessary
-        $startTimeRaw = $activity['startTime'] ?? date('Y-m-d H:i:s');
+        $type = $body['type'] ?: '';
+        // Convert ISO 8601 to MySQL datetime format
+        $startTimeRaw = $body['startTime'] ?? date('Y-m-d H:i:s');
         $startTime = date('Y-m-d H:i:s', strtotime($startTimeRaw));
-        $endTimeRaw = $activity['endTime'] ?? null;
+        $endTimeRaw = $body['endTime'] ?? null;
         $endTime = $endTimeRaw ? date('Y-m-d H:i:s', strtotime($endTimeRaw)) : null;
-        $steps = $activity['steps'] ?? 0;
-        $distance = $activity['distance'] ?? 0.0;
-        $duration = $activity['duration'] ?? 0;
-        $calories = $activity['calories'] ?? 0.0;
-        $reps = $activity['reps'] ?? 0;
-        $challengeId = $activity['challengeId'] ?? null;
-        $tracks = isset($activity['tracks']) ? json_encode($activity['tracks']) : json_encode([]);
+        $steps = $body['steps'] ?? 0;
+        $distance = $body['distance'] ?? 0.0;
+        $duration = $body['duration'] ?? 0;
+        $calories = $body['calories'] ?? 0.0;
+        $reps = $body['reps'] ?? 0;
+        $challengeId = $body['challengeId'] ?? null;
+        $tracks = isset($body['tracks']) ? json_encode($body['tracks']) : json_encode([]);
 
         $stmt = $pdo->prepare('
             INSERT INTO activity (
@@ -107,7 +120,7 @@ class ActivityController
             )
         ');
 
-        $stmt->execute([
+        $stmt->execute(params: [
             ':uuid' => $uuid,
             ':user_id' => $userId,
             ':type' => $type,
@@ -122,8 +135,149 @@ class ActivityController
             ':tracks' => $tracks
         ]);
 
-        respond([
-            'message' => 'Activity added successfully'
-        ], 201);
+        respond(true, 201);
+    }
+
+    public static function batchAdd($body)
+    {
+        $userId = $body['user_id'];
+        $activities = $body['activities'];
+
+        $pdo = Database::getInstance();
+
+        // Prepare bulk insert for all activities that do not already exist
+        $toInsert = [];
+        foreach ($activities as $activity) {
+            $uuid = $activity['id'];
+
+            // This is making timeout!
+            // // Check if already exists
+            // $stmt = $pdo->prepare('SELECT COUNT(*) FROM activity WHERE uuid = ?');
+            // $stmt->execute([$uuid]);
+            // $exists = $stmt->fetchColumn();
+            // if ($exists) {
+            //     continue;
+            // }
+
+            $type = $activity['type'] ?? '';
+            $startTimeRaw = $activity['startTime'] ?? date('Y-m-d H:i:s');
+            $startTime = date('Y-m-d H:i:s', strtotime($startTimeRaw));
+            $endTimeRaw = $activity['endTime'] ?? null;
+            $endTime = $endTimeRaw ? date('Y-m-d H:i:s', strtotime($endTimeRaw)) : null;
+            $steps = $activity['steps'] ?? 0;
+            $distance = $activity['distance'] ?? 0.0;
+            $duration = $activity['duration'] ?? 0;
+            $calories = $activity['calories'] ?? 0.0;
+            $reps = $activity['reps'] ?? 0;
+            $challengeId = $activity['challengeId'] ?? null;
+            $tracks = isset($activity['tracks']) ? json_encode($activity['tracks']) : json_encode([]);
+
+            $toInsert[] = [
+                $uuid,
+                $userId,
+                $type,
+                $startTime,
+                $endTime,
+                $duration,
+                $distance,
+                $calories,
+                $steps,
+                $reps,
+                $challengeId,
+                $tracks
+            ];
+        }
+
+        if (!empty($toInsert)) {
+            // Build bulk insert query
+            $placeholders = implode(',', array_fill(0, count($toInsert), '(?,?,?,?,?,?,?,?,?,?,?,?)'));
+            $query = "INSERT IGNORE INTO activity (
+            uuid,
+            user_id,
+            type,
+            start_time,
+            end_time,
+            duration,
+            distance,
+            calories,
+            steps,
+            reps,
+            challenge_id,
+            tracks
+            ) VALUES " . $placeholders;
+
+            // Flatten values
+            $values = [];
+            foreach ($toInsert as $row) {
+                foreach ($row as $val) {
+                    $values[] = $val;
+                }
+            }
+            $stmt = $pdo->prepare($query);
+            $stmt->execute($values);
+            $inserted = $stmt->rowCount();
+            error_log("Responded with inserted = " . $inserted);
+            respond($inserted, $inserted > 0 ? 201 : 409);
+        } else {
+            respond(["message" => "No activity found to add"], 400);
+        }
+    }
+}
+
+class Activity
+{
+    public $id;
+    public $type;
+    public $startTime;
+    public $endTime;
+    public $steps;
+    public $distance;
+    public $duration;
+    public $calories;
+    public $reps;
+    public $challengeId;
+    public $tracks;
+
+    public function __construct(
+        $id = 0,
+        $type = '',
+        $startTime = null,
+        $endTime = null,
+        $steps = 0,
+        $distance = 0.0,
+        $duration = 0,
+        $calories = 0.0,
+        $reps = 0,
+        $challengeId = null,
+        $tracks = []
+    ) {
+        $this->id = $id;
+        $this->type = $type;
+        $this->startTime = $startTime;
+        $this->endTime = $endTime;
+        $this->steps = $steps;
+        $this->distance = $distance;
+        $this->duration = $duration;
+        $this->calories = $calories;
+        $this->reps = $reps;
+        $this->challengeId = $challengeId;
+        $this->tracks = $tracks;
+    }
+
+    public static function parse($sqlObject)
+    {
+        return new Activity(
+            $sqlObject['uuid'] ?? 0,
+            $sqlObject['type'] ?? '',
+            $sqlObject['start_time'] ?? null,
+            $sqlObject['end_time'] ?? null,
+            $sqlObject['steps'] ?? 0,
+            $sqlObject['distance'] ?? 0.0,
+            $sqlObject['duration'] ?? 0,
+            $sqlObject['calories'] ?? 0.0,
+            $sqlObject['reps'] ?? 0,
+            $sqlObject['challenge_id'] ?? null,
+            $sqlObject['tracks'] ?? []
+        );
     }
 }
